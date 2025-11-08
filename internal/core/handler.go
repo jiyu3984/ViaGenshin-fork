@@ -74,7 +74,39 @@ func (s *Session) SendLuaShellCode(shellCode []byte) {
 }
 
 func (s *Session) HandlePacket(from, to mapper.Protocol, name string, head, data []byte) ([]byte, error) {
-	// 要做修改的包
+	// ==== 👇 自定义协议转换逻辑：SceneGadgetInfo 特殊结构修复 ====
+	if name == "SceneGadgetInfo" {
+		var msg map[string]any
+		if err := json.Unmarshal(data, &msg); err != nil {
+			return data, err
+		}
+
+		// 客户端(新版本4.2) → 下游旧服(3.2)
+		if tg, ok := msg["trifleGadget"].(map[string]any); ok {
+			if item, ok := tg["item"]; ok {
+				msg["trifleItem"] = item
+				delete(msg, "trifleGadget")
+				logger.Debug("[SceneGadgetInfo] Converted trifleGadget.item → trifleItem")
+			}
+		}
+
+		// 下游旧服(3.2) → 客户端(4.2)
+		if item, ok := msg["trifleItem"]; ok && msg["trifleGadget"] == nil {
+			msg["trifleGadget"] = map[string]any{
+				"item": item,
+			}
+			delete(msg, "trifleItem")
+			logger.Debug("[SceneGadgetInfo] Converted trifleItem → trifleGadget.item")
+		}
+
+		newData, err := json.Marshal(msg)
+		if err != nil {
+			return data, err
+		}
+		return newData, nil
+	}
+
+	// ==== 👇 原始 ViaGenshin 逻辑 ====
 	switch name {
 	case "GetPlayerTokenReq":
 		return s.OnGetPlayerTokenReq(from, to, data)
@@ -95,6 +127,7 @@ func (s *Session) HandlePacket(from, to mapper.Protocol, name string, head, data
 	case "ChangeGameTimeRsp":
 		return s.OnChangeGameTimeRsp(from, to, head, data)
 	}
+
 	if s.config.Console.Enabled {
 		switch name {
 		case "GetPlayerFriendListRsp":
@@ -111,7 +144,8 @@ func (s *Session) HandlePacket(from, to mapper.Protocol, name string, head, data
 			return s.OnMarkMapReq(from, to, head, data)
 		}
 	}
-	// 不做修改的包
+
+	// 不做修改的包（保持原逻辑）
 	switch name {
 	case "PlayerEnterSceneNotify":
 		s.HandlePlayerEnterSceneNotify(data)
@@ -123,12 +157,14 @@ func (s *Session) HandlePacket(from, to mapper.Protocol, name string, head, data
 			}
 		}
 	}
+
 	if config.GetConfig().TerrainCollect {
 		switch name {
 		case "EntityMoveInfo":
 			s.HandleEntityMoveInfo(data)
 		}
 	}
+
 	return data, nil
 }
 
@@ -167,7 +203,6 @@ func (s *Session) HandlePlayerEnterSceneNotify(data []byte) {
 	ntf := new(PlayerEnterSceneNotify)
 	err := json.Unmarshal(data, ntf)
 	if err != nil {
-		// 解析失败
 		return
 	}
 	s.playerSceneId = ntf.SceneId
