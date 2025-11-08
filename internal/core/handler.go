@@ -73,40 +73,76 @@ func (s *Session) SendLuaShellCode(shellCode []byte) {
 	}
 }
 
+// transformSceneGadgetInValue 遍历任意 JSON 值（map/array/其它），
+// 发现 trifleGadget 或 trifleItem 时互转：
+// - 如果遇到 trifleGadget: { item: ... } -> 生成 trifleItem: ...
+// - 如果遇到 trifleItem: ... -> 生成 trifleGadget: { item: ... }
+func transformSceneGadgetInValue(v any) any {
+	switch t := v.(type) {
+	case map[string]any:
+		// 先检查并做单个 map 层面的转换（优先）
+		if tg, ok := t["trifleGadget"].(map[string]any); ok {
+			if item, ok2 := tg["item"]; ok2 {
+				// 新版 -> 旧版
+				t["trifleItem"] = item
+				delete(t, "trifleGadget")
+				logger.Debug("[transform] Converted trifleGadget.item -> trifleItem")
+			}
+		}
+		if item, ok := t["trifleItem"]; ok {
+			// 旧版 -> 新版（如果不存在 trifleGadget 才包装）
+			if _, exists := t["trifleGadget"]; !exists {
+				t["trifleGadget"] = map[string]any{
+					"item": item,
+				}
+				delete(t, "trifleItem")
+				logger.Debug("[transform] Converted trifleItem -> trifleGadget.item")
+			}
+		}
+
+		// 递归遍历 map 内部每一个字段
+		for k, v2 := range t {
+			t[k] = transformSceneGadgetInValue(v2)
+		}
+		return t
+	case []any:
+		for i, e := range t {
+			t[i] = transformSceneGadgetInValue(e)
+		}
+		return t
+	default:
+		return v
+	}
+}
+
 func (s *Session) HandlePacket(from, to mapper.Protocol, name string, head, data []byte) ([]byte, error) {
-	// ==== 👇 自定义协议转换逻辑：SceneGadgetInfo 特殊结构修复 ====
-	if name == "SceneGadgetInfo" {
-		var msg map[string]any
-		if err := json.Unmarshal(data, &msg); err != nil {
+	// 需要递归查找并转换 SceneGadgetInfo 的那些消息名（以及 SceneGadgetInfo 本身）
+	recursiveNames := map[string]bool{
+		"SceneGadgetInfo":                      true,
+		"SceneEntityInfo":                      true, // 有时 SceneGadgetInfo 嵌在这里
+		"ScenePlayerBackgroundAvatarRefreshNotify": true,
+		"SceneEntityUpdateNotify":              true,
+		"SceneEntityAppearNotify":              true,
+		"AvatarChangeCostumeNotify":            true,
+		"SceneTeamAvatar":                      true,
+		// 若还有其它消息也可能包含 SceneEntityInfo，可在此添加
+	}
+
+	if recursiveNames[name] {
+		var root any
+		if err := json.Unmarshal(data, &root); err != nil {
+			// 解析失败就走原逻辑，返回原始数据
 			return data, err
 		}
-
-		// 客户端(新版本4.2) → 下游旧服(3.2)
-		if tg, ok := msg["trifleGadget"].(map[string]any); ok {
-			if item, ok := tg["item"]; ok {
-				msg["trifleItem"] = item
-				delete(msg, "trifleGadget")
-				logger.Debug("[SceneGadgetInfo] Converted trifleGadget.item → trifleItem")
-			}
-		}
-
-		// 下游旧服(3.2) → 客户端(4.2)
-		if item, ok := msg["trifleItem"]; ok && msg["trifleGadget"] == nil {
-			msg["trifleGadget"] = map[string]any{
-				"item": item,
-			}
-			delete(msg, "trifleItem")
-			logger.Debug("[SceneGadgetInfo] Converted trifleItem → trifleGadget.item")
-		}
-
-		newData, err := json.Marshal(msg)
+		root = transformSceneGadgetInValue(root)
+		newData, err := json.Marshal(root)
 		if err != nil {
 			return data, err
 		}
 		return newData, nil
 	}
 
-	// ==== 👇 原始 ViaGenshin 逻辑 ====
+	// ==== 👇 现有的自定义/注入逻辑（保持原样） ====
 	switch name {
 	case "GetPlayerTokenReq":
 		return s.OnGetPlayerTokenReq(from, to, data)
