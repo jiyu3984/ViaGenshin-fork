@@ -1,0 +1,49 @@
+syntax = "proto3";
+
+import "AbilityIdentifier.proto";
+import "AttackHitEffectResult.proto";
+import "HitCollision.proto";
+import "Vector.proto";
+
+message AttackResult {
+	repeated uint32 GDMPCBPOKKE = 1241;
+	AbilityIdentifier ability_identifier = 10;
+	bytes KKEFNDPGLNK = 563;
+	string anim_event_id = 4;
+	HitCollision hit_collision = 6;
+	Vector resolved_dir = 11;
+	Vector ABKAFFNKFDG = 1168;
+	bytes IIELBJFCAOF = 1217;
+	AttackHitEffectResult hit_eff_result = 8;
+	bytes OIGANBDNLJH = 995;
+	uint32 hashed_anim_event_id = 520;
+	uint32 amplify_reaction_type = 1820;
+	float damage_shield = 1023;
+	float damage = 3;
+	uint32 CBOHABGILCC = 1132;
+	uint32 addhurt_reaction_type = 1819;
+	float element_durability_attenuation = 142;
+	uint32 attack_timestamp_ms = 410;
+	uint32 attack_count = 56;
+	uint32 target_type = 1846;
+	bool mute_element_hurt = 643;
+	uint32 bullet_fly_time_ms = 1580;
+	uint32 endure_break = 13;
+	bool is_crit = 2;
+	bool NAMHMKNMBAL = 1292;
+	uint32 EDCGODFKKBE = 455;
+	float endure_delta = 151;
+	uint32 CCFPMKAEOII = 313;
+	uint32 defense_id = 5;
+	float NIFILLJOGEF = 1547;
+	uint32 element_type = 9;
+	uint32 critical_rand = 605;
+	bool is_resist_text = 1697;
+	bool NNCCGHOKPAC = 646;
+	bool KAPBKFNJLBJ = 1429;
+	int32 hit_retreat_angle_compat = 15;
+	uint32 hit_pos_type = 7;
+	float element_amplify_rate = 1073;
+	uint32 attacker_id = 1;
+	uint32 GICCGFGHHLK = 775;
+}
