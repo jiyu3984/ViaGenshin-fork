@@ -1,0 +1,11 @@
+syntax = "proto3";
+
+import "EvtSetAttackTargetInfo.proto";
+import "ForwardType.proto";
+
+// CmdID: 9960
+
+message EvtSetAttackTargetNotify {
+	EvtSetAttackTargetInfo evt_set_attack_target_info = 8;
+	ForwardType forward_type = 4;
+}
