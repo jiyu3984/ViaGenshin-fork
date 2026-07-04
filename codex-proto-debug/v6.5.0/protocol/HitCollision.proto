@@ -1,0 +1,13 @@
+syntax = "proto3";
+
+import "HitColliderType.proto";
+import "Vector.proto";
+
+message HitCollision {
+	Vector hit_point = 14;
+	Vector hit_dir = 3;
+	HitColliderType hit_collider_type = 2;
+	float MHMDJKPKEGP = 10;
+	int32 hit_box_index = 6;
+	float NAEFDJDHGJI = 13;
+}
